@@ -7,7 +7,7 @@
   "scripts": {
     "proto:gen": "./proto-gen.sh",    
     "start": "nodemon --watch './**/*.ts' --exec 'node --loader ts-node/esm --experimental-specifier-resolution=node --experimental-top-level-await --no-warnings' src/server.ts",
-    "client": "ts-node src/client"
+    "client": "nodemon --watch './**/*.ts' --exec 'node --loader ts-node/esm --experimental-specifier-resolution=node --experimental-top-level-await --no-warnings' src/client.ts"
   },
   "dependencies": {
     "@grpc/grpc-js": "^1.6.3",
