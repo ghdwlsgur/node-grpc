@@ -8,6 +8,8 @@ import { ProtoGrpcType } from '../proto/random.js';
 import { RandomHandlers } from '../proto/randomPackage/Random.js';
 import { TodoResponse } from 'proto/randomPackage/TodoResponse.js';
 import { TodoRequest } from 'proto/randomPackage/TodoRequest.js';
+import { ChatRequest } from 'proto/randomPackage/ChatRequest.js';
+import { ChatResponse } from 'proto/randomPackage/ChatResponse.js';
 
 const PORT = 8082;
 const PROTO_FILE = './proto/random.proto';
@@ -36,6 +38,11 @@ function main() {
 }
 
 const todoList: TodoResponse = { todos: [] };
+const callObjByUsername = new Map<
+  string,
+  grpc.ServerDuplexStream<ChatRequest, ChatResponse>
+>();
+
 function getServer() {
   const server = new grpc.Server();
   server.addService(randomPackage.Random.service, {
@@ -69,6 +76,47 @@ function getServer() {
         callback(null, {
           todos: todoList.todos,
         });
+      });
+    },
+
+    Chat: call => {
+      call.on('data', req => {
+        const username = call.metadata.get('username')[0] as string;
+        const msg = req.message;
+        console.log(username, req.message);
+
+        for (let [user, usersCall] of callObjByUsername) {
+          if (username !== user) {
+            usersCall.write({
+              username: username,
+              message: msg,
+            });
+          }
+        }
+
+        if (callObjByUsername.get(username) === undefined)
+          callObjByUsername.set(username, call);
+      });
+
+      call.on('end', () => {
+        const username = call.metadata.get('username')[0] as string;
+        callObjByUsername.delete(username);
+
+        for (let [user, usersCall] of callObjByUsername) {
+          usersCall.write({
+            username: username,
+            message: 'Has Left the Chat!',
+          });
+        }
+
+        console.log(`${username} is ending their chat session`);
+
+        call.write({
+          username: username,
+          message: `Has Left the Chat!`,
+        });
+
+        call.end();
       });
     },
   } as RandomHandlers);
